@@ -1,0 +1,1 @@
+ansible을 통해 CloudWatch Agent를 배포 및 골드 이미지를 생성하여 CloudWatch Agent 지표 자동 모니터링

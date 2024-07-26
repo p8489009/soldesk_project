@@ -1,0 +1,77 @@
+---
+- name: Configure dynamodb-DB-2A instance
+  hosts: name_VEC_PRD_VPC_DB_PRI_2A:name_VEC_PRD_VPC_DB_PRI_2C
+  become: yes
+  vars:
+    user_name: dynamodb-dbserver
+    ssh_port: 2222
+
+  tasks:
+    - name: Update all packages to the latest version
+      yum:
+        name: "*"
+        state: latest
+        update_cache: yes
+
+    - name: Upgrade and install required packages
+      yum:
+        name:
+          - curl
+          - wget
+          - unzip
+          - nano
+          - vim
+          - net-tools
+          - python-firewall
+          - mysql
+          - firewalld
+        state: present
+
+    - name: Create user {{ user_name }}
+      user:
+        name: "{{ user_name }}"
+        state: present
+        shell: /bin/bash
+
+    - name: Start and enable firewalld
+      systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+
+    - name: Install AWS CLI - Download ZIP
+      get_url:
+        url: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+        dest: "/tmp/awscliv2.zip"
+
+    - name: Install AWS CLI - Unzip
+      unarchive:
+        src: "/tmp/awscliv2.zip"
+        dest: "/tmp/"
+        remote_src: yes
+
+    - name: Install AWS CLI - Run installer
+      command: sudo /tmp/aws/install
+
+    - name: Change SSH port to {{ ssh_port }}
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Port 22'
+        line: 'Port {{ ssh_port }}'
+        state: present
+
+    - name: Allow port {{ ssh_port }} through the firewall
+      firewalld:
+        port: "{{ ssh_port }}/tcp"
+        permanent: yes
+        state: enabled
+      notify: Reload Firewalld
+
+    - name: Restart SSH service to apply changes
+      service:
+        name: sshd
+        state: restarted
+
+  handlers:
+    - name: Reload Firewalld
+      command: firewall-cmd --reload

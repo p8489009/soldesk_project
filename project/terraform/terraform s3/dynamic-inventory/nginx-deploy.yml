@@ -1,0 +1,83 @@
+---
+- name: Configure nginx-PUB-2A instance
+  hosts: name_VEC_PRD_VPC_NGINX_PUB_2A:name_VEC_PRD_VPC_NGINX_PUB_2C
+  become: yes
+  vars:
+    html_files:
+      - create-survey.html
+      - start-survey.html
+      - take-survey.html
+      - view-survey.html
+      - list-survey.html
+    src_path: /home/ec2-user/html
+    dest_path: /usr/share/nginx/html
+    user_name: webserver
+
+  tasks:
+    - name: Update all packages to the latest version
+      yum:
+        name: "*"
+        state: latest
+        update_cache: yes
+
+    - name: Install Nginx from Amazon Linux Extras
+      command: amazon-linux-extras install nginx1 -y
+
+    - name: Start and enable Nginx
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Upgrade and install required packages
+      yum:
+        name:
+          - curl
+          - wget
+          - unzip
+          - nano
+          - vim
+          - net-tools
+          - python-firewall
+        state: present
+
+    - name: Create user {{ user_name }}
+      user:
+        name: "{{ user_name }}"
+        state: present
+        shell: /bin/bash
+
+    - name: Create source HTML directory if it does not exist
+      file:
+        path: "{{ src_path }}"
+        state: directory
+        owner: ec2-user
+        group: ec2-user
+
+    - name: Create destination HTML directory if it does not exist
+      file:
+        path: "{{ dest_path }}"
+        state: directory
+        owner: nginx
+        group: nginx
+
+    - name: Copy HTML files to Nginx directory
+      copy:
+        src: "{{ src_path }}/{{ item }}"
+        dest: "{{ dest_path }}/{{ item }}"
+        owner: nginx
+        group: nginx
+        mode: '0644'
+      with_items: "{{ html_files }}"
+      ignore_errors: yes
+
+    - name: Copy create-survey.html to index.html
+      command: cp {{ dest_path }}/create-survey.html {{ dest_path }}/index.html
+      ignore_errors: yes
+
+    - name: Set create-survey.html as default index page
+      lineinfile:
+        path: /etc/nginx/nginx.conf
+        regexp: 'index'
+        line: 'index create-survey.html;'
+        state: present

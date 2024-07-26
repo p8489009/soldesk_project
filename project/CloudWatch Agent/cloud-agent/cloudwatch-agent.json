@@ -1,0 +1,45 @@
+{
+    "variables": {
+      "aws_access_key": "{{env `AWS_ACCESS_KEY_ID`}}",
+      "aws_secret_key": "{{env `AWS_SECRET_ACCESS_KEY`}}",
+      "region": "ap-northeast-2",
+      "instance_type": "t2.micro",
+      "source_ami": "ami-0fd54cba47d6e98dc",
+      "ssh_username": "ec2-user"
+    },
+    "builders": [
+      {
+        "type": "amazon-ebs",
+        "access_key": "{{user `aws_access_key`}}",
+        "secret_key": "{{user `aws_secret_key`}}",
+        "region": "{{user `region`}}",
+        "instance_type": "{{user `instance_type`}}",
+        "source_ami": "{{user `source_ami`}}",
+        "ssh_username": "{{user `ssh_username`}}",
+        "ami_name": "cloudwatch-agent-ami-{{timestamp}}"
+      }
+    ],
+    "provisioners": [
+      {
+        "type": "shell",
+        "inline": [
+          "sudo yum update -y",
+          "sudo yum install -y amazon-cloudwatch-agent",
+          "sudo mkdir -p /opt/aws/amazon-cloudwatch-agent/etc"
+        ]
+      },
+      {
+        "type": "file",
+        "source": "amazon-cloudwatch-agent.json",
+        "destination": "/tmp/amazon-cloudwatch-agent.json"  
+      },
+      {
+        "type": "shell",
+        "inline": [
+          "sudo mv /tmp/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json",  
+          "sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s"
+        ]
+      }
+    ]
+  }
+  

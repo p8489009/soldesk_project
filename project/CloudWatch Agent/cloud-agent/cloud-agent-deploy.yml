@@ -1,0 +1,34 @@
+---
+- name: Deploy CloudWatch Agent to EC2 instance
+  hosts: All
+  become: yes
+  vars:
+    local_config_path: "/home/ec2-user/cloud-agent/amazon-cloudwatch-agent.json"
+    remote_config_path: "/home/ec2-user/amazon-cloudwatch-agent.json"
+    final_config_path: "/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json"
+
+  tasks:
+    - name: Install Amazon CloudWatch Agent
+      yum:
+        name: amazon-cloudwatch-agent
+        state: present
+
+    - name: Copy CloudWatch Agent configuration file
+      copy:
+        src: "{{ local_config_path }}"
+        dest: "{{ remote_config_path }}"
+        owner: ec2-user
+        group: ec2-user
+        mode: '0644'
+
+    - name: Move configuration file to final destination
+      command: mv {{ remote_config_path }} {{ final_config_path }}
+
+    - name: Apply CloudWatch Agent configuration
+      command: >
+        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl
+        -a fetch-config
+        -m ec2
+        -c file:{{ final_config_path }}
+        -s
+
